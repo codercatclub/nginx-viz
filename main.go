@@ -276,6 +276,11 @@ func watchLogFile(logFile string, c chan LogEntry, db *maxminddb.Reader) {
 			continue
 		}
 
+		// Skip requests to flag SVG files to prevent infinite loop
+		if strings.Contains(logEntry.URL, "nginxviz") {
+			continue
+		}
+
 		ip, err := netip.ParseAddr(logEntry.IP)
 		if err != nil {
 			log.Printf("Error parsing ip: %v", err)
