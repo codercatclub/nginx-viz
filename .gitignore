@@ -1,0 +1,9 @@
+ui/node_modules
+public
+*.vscode
+*dist
+*.Identifier
+*.log
+*.DS_Store
+bin
+scripts

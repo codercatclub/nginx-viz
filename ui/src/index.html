@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NGINX Visualizer</title>
+  <style>
+    :root {
+      --primary-color: #ffffff;
+      --secondary-color: #ff68ff;
+      --country-color: #00ff88;
+      --status-color: #00d4ff;
+    }
+
+    html, body {
+      margin: 0;
+      overscroll-behavior-y: none;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      background: #000;
+      color: var(--secondary-color);
+    }
+
+    #app-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+    }
+
+    #main-content {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.9);
+      border: 2px solid var(--primary-color);
+      border-radius: 8px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1), 
+                  inset 0 0 20px rgba(255, 104, 255, 0.05);
+      max-width: 400px;
+      pointer-events: auto;
+    }
+
+    #control-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      background: linear-gradient(135deg, rgba(255, 104, 255, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    #control-panel-title {
+      flex: 1;
+    }
+
+    #control-panel-title h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: var(--primary-color);
+      text-shadow: 0 0 10px rgba(255, 104, 255, 0.5);
+    }
+
+    #control-panel-title p {
+      margin: 5px 0 0 0;
+      font-size: 11px;
+      color: var(--secondary-color);
+      letter-spacing: 1.5px;
+      opacity: 0.8;
+    }
+
+    #control-panel-sound {
+      margin-left: 15px;
+      display: flex;
+      align-items: center;
+    }
+
+    #control-panel-description {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 104, 255, 0.03);
+    }
+
+    #control-panel-description p {
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--secondary-color);
+      opacity: 0.85;
+      letter-spacing: 0.5px;
+    }
+
+    #activity-log-container {
+      padding: 15px 20px;
+    }
+
+    .panel-section-header {
+      margin: 0 0 10px 0;
+      font-size: 12px;
+      color: var(--primary-color);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.9;
+    }
+
+    .panel-section {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #activity-log {
+      color: var(--secondary-color);
+      font-size: 11px;
+      line-height: 1.6;
+      height: 120px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    #activity-log::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    #activity-log::-webkit-scrollbar-track {
+      background: #000;
+    }
+
+    #activity-log::-webkit-scrollbar-thumb {
+      background: var(--primary-color);
+      border-radius: 4px;
+    }
+
+    #activity-log::-webkit-scrollbar-thumb:hover {
+      background: var(--primary-color);
+      opacity: 0.8;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+      background: rgba(255, 20, 147, 0.05);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+
+    .log-entry .log-time {
+      color: var(--primary-color);
+      font-size: 10px;
+    }
+
+    .log-entry .log-country {
+      color: var(--country-color);
+      font-size: 10px;
+    }
+
+    .log-entry .log-method {
+      color: var(--primary-color);
+      font-weight: bold;
+      font-size: 10px;
+    }
+
+    .log-entry .log-url {
+      color: var(--secondary-color);
+    }
+
+    .log-entry .log-status {
+      color: var(--status-color);
+      font-weight: bold;
+    }
+
+    .log-entry .log-status.error {
+      color: #ff3366;
+    }
+
+    .log-entry .log-useragent {
+      color: var(--primary-color);
+      font-size: 10px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    p {
+      margin: 8px 0;
+    }
+
+    strong {
+      color: var(--primary-color);
+    }
+  </style>
+  <script src="public/ui.js"></script>
+</head>
+<body>
+
+  <loading-screen></loading-screen>
+
+  <div id="app-container">
+    <div id="control-panel">
+      <div id="control-panel-header">
+        <div id="control-panel-title">
+          <h1>DEFEND YOUR CASTLE</h1>
+        </div>
+        <div id="control-panel-sound">
+          <sound-button></sound-button>
+        </div>
+      </div>
+      
+      <div id="control-panel-description">
+        <p>Realtime NGINX Visualizer. Monitor incoming requests as they approach your castle. Probable bots and malicious agents are signaled by avatar. Defense mechanisms include adjusting your NGINX config!</p>
+      </div>
+      
+      <div class="panel-section">
+        <h2 class="panel-section-header">Domain</h2>
+        <p style="margin: 0; font-size: 11px; color: var(--status-color); letter-spacing: 1px;">https://codercat.xyz</p>
+      </div>
+      
+      <div id="activity-log-container">
+        <h2 class="panel-section-header">Logs</h2>
+        <div id="activity-log">
+          <div style="color: #666; font-size: 12px; text-align: center; padding: 20px;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="main-content">
+      <div id="canvas-container">
+        <!-- Three.js canvas will be inserted here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- <cc-tutorial></cc-tutorial> -->
+
+  <script src="public/bundle.js"></script>
+</body>
+</html>
