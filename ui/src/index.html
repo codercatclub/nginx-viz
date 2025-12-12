@@ -17,7 +17,7 @@
       margin: 0;
       overscroll-behavior-y: none;
       overflow: hidden;
-      font-family: monospace;
+      font-family: 'Courier New', Courier, monospace;
       background: #000;
       color: var(--secondary-color);
     }
@@ -53,11 +53,7 @@
       left: 20px;
       z-index: 100;
       background: rgba(0, 0, 0, 0.9);
-      border: 2px solid var(--primary-color);
-      border-radius: 8px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1), 
-                  inset 0 0 20px rgba(255, 104, 255, 0.05);
+      border: 0px solid var(--primary-color);
       max-width: 400px;
       pointer-events: auto;
     }
@@ -82,7 +78,6 @@
       text-transform: uppercase;
       letter-spacing: 3px;
       color: var(--primary-color);
-      text-shadow: 0 0 10px rgba(255, 104, 255, 0.5);
     }
 
     #control-panel-sound {
