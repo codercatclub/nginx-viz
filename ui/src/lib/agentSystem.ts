@@ -112,7 +112,6 @@ export class AgentSystem {
         }
 
         const position = new THREE.Vector3(x, y, z).normalize().multiplyScalar(40);
-        console.log(`Spawning agent at position: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)} (from hash: ${hash})`);
         return position;
     }
 
