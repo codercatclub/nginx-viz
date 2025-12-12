@@ -92,7 +92,9 @@ export class AgentSystem {
         for (let i = 0; i < str.length; i++) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        return Math.abs(hash) % 0xffffff;
+         // Ensure color is always a full 6-digit hex (0x100000 to 0xffffff)
+        const color = 0x100000 + (Math.abs(hash) % 0xf00000);
+        return color;
     }
 
     private hashStringToPosition(str: string): THREE.Vector3 {
@@ -100,12 +102,18 @@ export class AgentSystem {
         for (let i = 0; i < str.length; i++) {
             hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        let x = ((hash % 10));
+        let x = Math.abs(hash % 10);
         let y = 0;
-        let z = (((hash >> 16) % 10));
+        let z = Math.abs((hash >> 16) % 10);
 
+        // Ensure we don't have a zero vector (can't normalize)
+        if (x === 0 && z === 0) {
+            x = 1;
+        }
 
-        return new THREE.Vector3(Math.abs(x), y, Math.abs(z)).normalize().multiplyScalar(40);
+        const position = new THREE.Vector3(x, y, z).normalize().multiplyScalar(40);
+        console.log(`Spawning agent at position: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)} (from hash: ${hash})`);
+        return position;
     }
 
     private isCrawler(userAgent: string): boolean {

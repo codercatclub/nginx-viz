@@ -210,7 +210,7 @@ export class EnvironmentSystem {
                     gl_FragColor = vec4(color, 1.0);
                 }
             `;
-            
+            castle.scale.set(1.09,1.09,1.09)
             // Initialize uniforms
             const uniforms = {
                 interactionPoints: { value: new Array(this.MAX_INTERACTION_POINTS).fill(new THREE.Vector3(999, 999, 999)) },

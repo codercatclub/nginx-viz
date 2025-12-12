@@ -30,7 +30,7 @@ export class Entity {
         this.camera = camera;
         this.soundPlayer = soundPlayer;
         scene.add(this.object);
-        
+
         // Create text label
         if (logEntry) {
             this.createTextDiv(logEntry, color);
@@ -40,13 +40,13 @@ export class Entity {
     update(deltaTime: number = 0.016) {
         const center = new THREE.Vector3(0, 0, 0);
         const distanceToCenter = this.object.position.length();
-        
+
         // Check collision with castle (simple box at center)
         if (distanceToCenter < 5) {
             if (this.environmentSystem) {
                 this.environmentSystem.addInteractionPoint(this.object.position);
             }
-            
+
             if (!this.hasReachedCenter) {
                 this.hasReachedCenter = true;
                 // Reject if status code is not 200
@@ -66,23 +66,23 @@ export class Entity {
                 }
             }
         }
-        
+
         if (this.rejected) {
             // Move back to initial position
             const direction = new THREE.Vector3().subVectors(this.initialPosition, this.object.position).normalize();
-            this.object.position.add(direction.multiplyScalar(deltaTime*7.0));
+            this.object.position.add(direction.multiplyScalar(deltaTime * 7.0));
             this.object.lookAt(this.initialPosition);
         } else {
             // Move towards center
             const direction = new THREE.Vector3().subVectors(center, this.object.position).normalize();
-            this.object.position.add(direction.multiplyScalar(deltaTime*7.0));
+            this.object.position.add(direction.multiplyScalar(deltaTime * 7.0));
             this.object.lookAt(center);
         }
-        
+
         if (this.mixer) {
             this.mixer.update(deltaTime);
         }
-        
+
         if (this.textDiv && this.camera) {
             this.updateTextPosition();
         }
@@ -94,27 +94,31 @@ export class Entity {
     setFlag(country: string) {
         if (country) {
             const countryCode = country.toLowerCase();
-            const svgUrl = `public/assets/textures/1x1/${countryCode}.svg`;
-            fetch(svgUrl)
-                .then(response => response.text())
-                .then(svgText => {
-                    const dataUrl = `data:image/svg+xml,${encodeURIComponent(svgText)}`;
-                    new THREE.TextureLoader().load(dataUrl, (img) => {
-                        // Ensure SVG has dimensions set for cross-browser compatibility
-                        if (!img.image.width || !img.image.height) {
-                            img.image.width = 128;
-                            img.image.height = 128;
+            const svgFilename = `${countryCode}.svg`;
+
+            // Use preloaded SVG from window.countryIcons
+            const countryIcons = (window as any).countryIcons || {};
+            const svgText = countryIcons[svgFilename];
+
+            if (svgText) {
+                const dataUrl = `data:image/svg+xml,${encodeURIComponent(svgText)}`;
+                new THREE.TextureLoader().load(dataUrl, (img) => {
+                    // Ensure SVG has dimensions set for cross-browser compatibility
+                    if (!img.image.width || !img.image.height) {
+                        img.image.width = 128;
+                        img.image.height = 128;
+                    }
+
+                    this.object.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            child.material = new THREE.MeshBasicMaterial()
+                            child.material.map = img;
+                            child.material.needsUpdate = true;
+
                         }
-                        this.object.traverse((child) => {
-                            if (child instanceof THREE.Mesh) {
-                                child.material = new THREE.MeshBasicMaterial()
-                                child.material.map = img;
-                                child.material.needsUpdate = true;
-                            }
-                        });
                     });
-                })
-                .catch(error => console.error('Error loading SVG:', error));
+                });
+            }
         }
     }
 
@@ -135,33 +139,33 @@ export class Entity {
         this.textDiv.style.position = 'absolute';
         this.textDiv.style.textAlign = 'center';
         this.textDiv.style.zIndex = '1000';
-        
+
         // Display the URL
         const displayText = logEntry.url.toString();
         this.textDiv.textContent = displayText;
-        
+
         document.body.appendChild(this.textDiv);
     }
 
     updateTextPosition() {
         if (!this.textDiv || !this.camera) return;
-        
+
         // Get position of the entity
         const position = this.object.position.clone();
         position.y += 7;
-        
+
         // Project 3D position to screen coordinates
         const vector = position.clone();
         vector.project(this.camera);
-        
+
         // Convert to screen coordinates
         const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
         const y = (-(vector.y * 0.5) + 0.5) * window.innerHeight;
-        
+
         // Update div position - the transform will center it from this point
-        this.textDiv.style.left = `${x-100}px`;
+        this.textDiv.style.left = `${x - 100}px`;
         this.textDiv.style.top = `${y}px`;
-        
+
         // Hide if behind camera
         if (vector.z > 1) {
             this.textDiv.style.display = 'none';

@@ -86,14 +86,20 @@ export class WebSocketHandler {
     
     logDiv.innerHTML = `
       <span class="log-status ${statusClass}">${entry.status_code}</span> | 
-      <span class="log-country">${entry.country || 'Unknown'}</span> | 
+      <span class="log-country"></span> | 
       <span class="log-method">${entry.method}</span> | 
       <span class="log-useragent">${userAgentParsed}</span> 
       <span class="log-url">${entry.url}</span>
     `;
 
     // Add tooltip with full log details
-    logDiv.title = `${entry.status_code} | ${entry.country || 'Unknown'} | ${entry.method} | ${entry.user_agent} | ${entry.url}`;
+    logDiv.title = `${entry.status_code} | ${entry.country_full || 'Unknown'} | ${entry.method} | ${entry.user_agent} | ${entry.url}`;
+
+    // Load country flag SVG
+    const countrySpan = logDiv.querySelector('.log-country');
+    if (countrySpan && entry.country) {
+      this.getCountryFlag(entry.country, countrySpan as HTMLElement);
+    }
 
     // Add to top of DOM (appears at top visually)
     activityLog.insertBefore(logDiv, activityLog.firstChild);
@@ -101,6 +107,29 @@ export class WebSocketHandler {
     // Keep only the most recent entries (remove from bottom)
     while (activityLog.children.length > this.maxLogEntries) {
       activityLog.removeChild(activityLog.lastChild!);
+    }
+  }
+
+  private getCountryFlag(country: string, element: HTMLElement): void {
+    const countryCode = country.toLowerCase();
+    const svgFilename = `${countryCode}.svg`;
+    
+    // Use preloaded SVG from window.countryIcons
+    const countryIcons = (window as any).countryIcons || {};
+    const svgText = countryIcons[svgFilename];
+    
+    if (svgText) {
+      element.innerHTML = svgText;
+      const svg = element.querySelector('svg');
+      if (svg) {
+        svg.style.width = '16px';
+        svg.style.height = '12px';
+        svg.style.display = 'inline-block';
+        svg.style.verticalAlign = 'middle';
+        svg.style.paddingBottom = '1px';
+      }
+    } else {
+      element.textContent = country;
     }
   }
 

@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -29,6 +30,7 @@ type errorResponse struct {
 }
 
 type nginxVizPage struct {
+	CountryIcons map[string]string `json:"country_icons"`
 }
 
 type ipRecord struct {
@@ -39,15 +41,16 @@ type ipRecord struct {
 }
 
 type LogEntry struct {
-	Timestamp  time.Time `json:"timestamp"`
-	IP         string    `json:"ip"`
-	Method     string    `json:"method"`
-	URL        string    `json:"url"`
-	StatusCode int       `json:"status_code"`
-	Size       int       `json:"size"`
-	UserAgent  string    `json:"user_agent"`
-	Referer    string    `json:"referer"`
-	Country    string    `json:"country"`
+	Timestamp   time.Time `json:"timestamp"`
+	IP          string    `json:"ip"`
+	Method      string    `json:"method"`
+	URL         string    `json:"url"`
+	StatusCode  int       `json:"status_code"`
+	Size        int       `json:"size"`
+	UserAgent   string    `json:"user_agent"`
+	Referer     string    `json:"referer"`
+	Country     string    `json:"country"`
+	CountryFull string    `json:"country_full"`
 }
 
 type LogUpdate struct {
@@ -127,8 +130,27 @@ func customFileServer(root http.FileSystem) http.Handler {
 }
 
 func main() {
+
+	//read all SVG icons and store them in an array.
+
+	svgIconMap := make(map[string]string)
+
+	svgIconPaths, err := publicDir.ReadDir("public/assets/textures/1x1")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, svgIconFile := range svgIconPaths {
+		svgText, err := publicDir.ReadFile("public/assets/textures/1x1/" + svgIconFile.Name())
+		if err != nil {
+			log.Printf("Error reading SVG file %s: %v", svgIconFile.Name(), err)
+			continue
+		}
+		svgIconMap[svgIconFile.Name()] = string(svgText)
+	}
+
 	// Parse command line arguments
-	logFilePtr := flag.String("log", "mylog.log", "Path to the nginx log file to watch")
+	logFilePtr := flag.String("i", "mylog.log", "Path to the nginx log file to watch")
 	flag.Parse()
 	var logFile = *logFilePtr
 
@@ -149,7 +171,7 @@ func main() {
 	go manageClients()
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", MakeNginxVizHandler()).Methods("GET")
+	r.HandleFunc("/", MakeNginxVizHandler(svgIconMap)).Methods("GET")
 	r.HandleFunc("/ws", MakeWebSocketHandler()).Methods("GET")
 	r.PathPrefix("/public/").Handler(customFileServer(http.FS(publicDir))).Methods("GET")
 
@@ -170,7 +192,7 @@ func main() {
 
 }
 
-func MakeNginxVizHandler() http.HandlerFunc {
+func MakeNginxVizHandler(countryIcons map[string]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		indexHtml, err := publicDir.ReadFile("public/index.html")
 		if err != nil {
@@ -183,7 +205,9 @@ func MakeNginxVizHandler() http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 
-		tmpl.Execute(w, nginxVizPage{})
+		tmpl.Execute(w, nginxVizPage{
+			CountryIcons: countryIcons,
+		})
 	}
 }
 
@@ -219,16 +243,30 @@ func parseNginxLog(line string) (LogEntry, error) {
 	}
 
 	return LogEntry{
-		Timestamp:  timestamp,
-		IP:         matches[1],
-		Method:     matches[3],
-		URL:        matches[4],
-		StatusCode: statusCode,
-		Size:       size,
-		Referer:    matches[7],
-		UserAgent:  matches[8],
-		Country:    "",
+		Timestamp:   timestamp,
+		IP:          matches[1],
+		Method:      matches[3],
+		URL:         matches[4],
+		StatusCode:  statusCode,
+		Size:        size,
+		Referer:     matches[7],
+		UserAgent:   matches[8],
+		Country:     "",
+		CountryFull: "",
 	}, nil
+}
+
+func getInode(logFile string) (uint64, error) {
+	freshInfo, err := os.Stat(logFile)
+	if err != nil {
+		return 0.0, err
+	}
+	freshStat, ok := freshInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0.0, fmt.Errorf("Syscall Error")
+	}
+
+	return freshStat.Ino, nil
 }
 
 // watchLogFile monitors the log file for new entries
@@ -252,51 +290,88 @@ func watchLogFile(logFile string, c chan LogEntry, db *maxminddb.Reader) {
 	}
 	defer file.Close()
 
+	rotated := make(chan bool, 1)
+	currentInode, err := getInode(logFile)
+	if err != nil {
+		log.Printf("Error getting logFile inode %v", err)
+		return
+	}
+
+	go inodeChecker(logFile, currentInode, rotated)
+
 	// Start from beginning of file
 	file.Seek(0, 0)
 	reader := bufio.NewReader(file)
 
 	for {
-		line, err := reader.ReadString('\n')
+		select {
+		case <-rotated:
+			// File rotated, restart watchLogFile
+			log.Printf("Restarting log file watcher...")
+			go watchLogFile(logFile, c, db)
+			return
+		default:
+			line, err := reader.ReadString('\n')
 
+			if err != nil {
+				// EOF reached, wait a bit and retry
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			logEntry, err := parseNginxLog(line)
+			if err != nil {
+				log.Printf("Error parsing log line: %v", err)
+				continue
+			}
+
+			// Skip requests to flag SVG files to prevent infinite loop
+			if strings.Contains(logEntry.URL, "nginxviz") {
+				continue
+			}
+
+			ip, err := netip.ParseAddr(logEntry.IP)
+			if err != nil {
+				log.Printf("Error parsing ip: %v", err)
+				continue
+			}
+
+			var record ipRecord
+			err = db.Lookup(ip).Decode(&record)
+			if err != nil {
+				log.Printf("Error decoding ip: %v", err)
+				continue
+			}
+
+			logEntry.Country = record.Country.ISOCode
+			logEntry.CountryFull = record.Country.Names["en"]
+
+			c <- logEntry
+		}
+	}
+}
+
+func inodeChecker(logFile string, currentInode uint64, rotated chan bool) {
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		newInode, err := getInode(logFile)
 		if err != nil {
-			// EOF reached, wait a bit and retry
-			time.Sleep(500 * time.Millisecond)
+			log.Printf("Error getting logFile inode %v", err)
 			continue
 		}
 
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
+		if newInode != currentInode {
+			log.Printf("Log file rotated (inode changed from %d to %d), restarting...", currentInode, newInode)
+			rotated <- true
+			return
 		}
-
-		logEntry, err := parseNginxLog(line)
-		if err != nil {
-			log.Printf("Error parsing log line: %v", err)
-			continue
-		}
-
-		// Skip requests to flag SVG files to prevent infinite loop
-		if strings.Contains(logEntry.URL, "nginxviz") {
-			continue
-		}
-
-		ip, err := netip.ParseAddr(logEntry.IP)
-		if err != nil {
-			log.Printf("Error parsing ip: %v", err)
-			continue
-		}
-
-		var record ipRecord
-		err = db.Lookup(ip).Decode(&record)
-		if err != nil {
-			log.Printf("Error decoding ip: %v", err)
-			continue
-		}
-
-		logEntry.Country = record.Country.ISOCode
-
-		c <- logEntry
 	}
 }
 

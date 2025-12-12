@@ -2,7 +2,7 @@ export class SoundPlayer {
     private audioContext: AudioContext;
     private sounds: Map<string, AudioBuffer> = new Map();
     private ambientSound?: AudioBufferSourceNode;
-    private playingSounds: Map<string, AudioBufferSourceNode> = new Map();
+    private playingSounds: Map<string, number> = new Map();
     private masterVolume: number = 1;
     private effectsVolume: number = 0.4;
     private ambientVolume: number = 1.0;
@@ -50,10 +50,9 @@ export class SoundPlayer {
     playSound(name: string, volume: number = 1.0): void {
         if (this.muted) return;
 
-        // Check if this sound is already playing
-        if (this.playingSounds.has(name)) {
-            return;
-        }
+        let count = this.playingSounds.get(name) || 0;
+
+        if(count > 2) return;
 
         const buffer = this.sounds.get(name);
         if (!buffer) {
@@ -71,11 +70,12 @@ export class SoundPlayer {
         gainNode.gain.value = this.masterVolume * this.effectsVolume * volume;
         
         // Track that this sound is playing
-        this.playingSounds.set(name, source);
+        this.playingSounds.set(name, count+1);
         
         // Remove from playing sounds when it ends
         source.onended = () => {
-            this.playingSounds.delete(name);
+            let count = this.playingSounds.get(name) || 0;
+            this.playingSounds.set(name, count-1);
         };
         
         source.start(0);

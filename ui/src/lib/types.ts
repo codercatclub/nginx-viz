@@ -8,4 +8,5 @@ export interface LogEntry {
     user_agent: string;
     referer: string;
     country: string;
+    country_full: string;
 }

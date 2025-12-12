@@ -8,7 +8,7 @@
   <style>
     :root {
       --primary-color: #ffffff;
-      --secondary-color: #ff68ff;
+      --secondary-color: #ff7bff;
       --country-color: #00ff88;
       --status-color: #00d4ff;
     }
@@ -17,7 +17,7 @@
       margin: 0;
       overscroll-behavior-y: none;
       overflow: hidden;
-      font-family: 'Courier New', Courier, monospace;
+      font-family: monospace;
       background: #000;
       color: var(--secondary-color);
     }
@@ -85,14 +85,6 @@
       text-shadow: 0 0 10px rgba(255, 104, 255, 0.5);
     }
 
-    #control-panel-title p {
-      margin: 5px 0 0 0;
-      font-size: 11px;
-      color: var(--secondary-color);
-      letter-spacing: 1.5px;
-      opacity: 0.8;
-    }
-
     #control-panel-sound {
       margin-left: 15px;
       display: flex;
@@ -107,7 +99,7 @@
 
     #control-panel-description p {
       margin: 0;
-      font-size: 11px;
+      font-size: 14px;
       line-height: 1.6;
       color: var(--secondary-color);
       opacity: 0.85;
@@ -120,7 +112,7 @@
 
     .panel-section-header {
       margin: 0 0 10px 0;
-      font-size: 12px;
+      font-size: 14px;
       color: var(--primary-color);
       text-transform: uppercase;
       letter-spacing: 2px;
@@ -132,11 +124,15 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    .panel-section p {
+      font-size: 14px;
+    }
+
     #activity-log {
       color: var(--secondary-color);
-      font-size: 11px;
+      font-size: 14px;
       line-height: 1.6;
-      height: 120px;
+      height: 210px;
       overflow-y: auto;
       overflow-x: hidden;
       display: flex;
@@ -173,18 +169,16 @@
 
     .log-entry .log-time {
       color: var(--primary-color);
-      font-size: 10px;
     }
 
     .log-entry .log-country {
-      color: var(--country-color);
-      font-size: 10px;
+      padding-bottom: 1px;
     }
 
     .log-entry .log-method {
-      color: var(--primary-color);
+      color: var(--country-color);
       font-weight: bold;
-      font-size: 10px;
+      min-width: 4ch;
     }
 
     .log-entry .log-url {
@@ -202,7 +196,6 @@
 
     .log-entry .log-useragent {
       color: var(--primary-color);
-      font-size: 10px;
     }
 
     canvas {
@@ -220,6 +213,14 @@
     }
   </style>
   <script src="public/ui.js"></script>
+  <script>
+    // Country icons map from server
+    window.countryIcons = {
+      {{range $key, $value := .CountryIcons}}
+      "{{$key}}": `{{$value}}`,
+      {{end}}
+    };
+  </script>
 </head>
 <body>
 
@@ -242,13 +243,13 @@
       
       <div class="panel-section">
         <h2 class="panel-section-header">Domain</h2>
-        <p style="margin: 0; font-size: 11px; color: var(--status-color); letter-spacing: 1px;">https://codercat.xyz</p>
+        <p style="margin: 0; color: var(--status-color); letter-spacing: 1px;">https://codercat.xyz</p>
       </div>
       
       <div id="activity-log-container">
         <h2 class="panel-section-header">Logs</h2>
         <div id="activity-log">
-          <div style="color: #666; font-size: 12px; text-align: center; padding: 20px;">
+          <div style="color: #666; font-size: 14px; text-align: center; padding: 20px;">
           </div>
         </div>
       </div>
