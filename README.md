@@ -3,6 +3,8 @@ In the style of "Defend your Castle" -- monitor incoming requests as they approa
 
 This app development started when we noticed 100+ requests from Open AI bots crawling our website. We felt the need to fight back, and generally understand the invisible landscape of the internet around us. Future developments include the ability to adjust your config directly through the app, providing a real-time defense strategy:) 
 
+Preview video [here](https://nyc3.digitaloceanspaces.com/cc-storage/vid/nginxviz.mov).
+
 ## Quick Start 
 
 1. Download the ```nginxviz``` binary from Github Releases. 
