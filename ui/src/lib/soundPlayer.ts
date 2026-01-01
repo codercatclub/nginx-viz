@@ -52,7 +52,7 @@ export class SoundPlayer {
 
         let count = this.playingSounds.get(name) || 0;
 
-        if(count > 2) return;
+        if(count > 4) return;
 
         const buffer = this.sounds.get(name);
         if (!buffer) {
